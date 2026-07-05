@@ -1,0 +1,320 @@
+I want to build a Debt Collections Voice Bot from scratch.
+This is a complete production-architecture project.
+Build everything step by step with full explanations.
+
+## PROJECT OVERVIEW
+A voice bot for a loan collections company that:
+
+1. Calls customers and reminds them of overdue loan amounts (fetched live from database)
+2. Communicates in English and Hindi language
+3. Captures Promise to Pay (PTP) — date and amount — with business rule validation
+4. Answers customer questions about their loan in real time
+5. Logs every call outcome as a followup record
+6. Escalates to human agent when customer disputes
+
+## TECH STACK (all free, open source)
+
+- Java 17 + Spring Boot 3.x (REST API layer)
+- Python 3.10 (bot orchestration)
+- Rasa 3.6.20 (dialogue engine — NLU + dialogue management)
+- faster-whisper (Speech to Text — runs locally, no API key)
+- Piper TTS (Text to Speech — runs locally, no API key)
+- FastAPI + uvicorn (Python bot server)
+- PostgreSQL 15 (database)
+- httpx (async HTTP between Python and Java)
+
+## DATABASE SCHEMA
+Use these exact tables and column names (quoted camelCase for PostgreSQL):
+
+CREATE TABLE IF NOT EXISTS accounts (
+"accountId" SERIAL PRIMARY KEY,
+"accountNumber" VARCHAR(50) NOT NULL UNIQUE,
+"customerName" VARCHAR(200) NOT NULL,
+"loanAmount" DECIMAL(15,2) NOT NULL,
+"overdueAmount" DECIMAL(15,2) DEFAULT 0,
+"preferredLanguage" VARCHAR(20) DEFAULT 'en',
+"lastEmiDate" DATE,
+"charges" DECIMAL(15,2) DEFAULT 0,
+"lastPaymentAmount" DECIMAL(15,2) DEFAULT 0,
+"lastPaymentDate" DATE
+);
+
+CREATE TABLE IF NOT EXISTS followup (
+"followupId" SERIAL PRIMARY KEY,
+"accountId" INT REFERENCES accounts("accountId"),
+"remarks" TEXT
+);
+
+CREATE TABLE IF NOT EXISTS promise (
+"promiseId" SERIAL PRIMARY KEY,
+"followupId" INT REFERENCES followup("followupId"),
+"accountId" INT REFERENCES accounts("accountId"),
+"promiseAmount" DECIMAL(15,2) NOT NULL,
+"promiseDate" DATE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS promise_policy (
+"promisePolicyId" SERIAL PRIMARY KEY,
+"maxPromiseDays" INT NOT NULL DEFAULT 30,
+"minPromisePercent" DECIMAL(5,2) NOT NULL DEFAULT 25.00
+);
+
+CREATE TABLE IF NOT EXISTS call_log (
+"callId" SERIAL PRIMARY KEY,
+"accountId" INT REFERENCES accounts("accountId"),
+"followupId" INT REFERENCES followup("followupId"),
+"callStartTime" TIMESTAMP,
+"callEndTime" TIMESTAMP,
+"callStatus" VARCHAR(30),
+"languageUsed" VARCHAR(20),
+"ptpCaptured" BOOLEAN DEFAULT FALSE,
+"escalated" BOOLEAN DEFAULT FALSE
+);
+
+INSERT INTO promise_policy ("maxPromiseDays", "minPromisePercent")
+VALUES (30, 25.00) ON CONFLICT DO NOTHING;
+
+INSERT INTO accounts
+("accountNumber","customerName","loanAmount","overdueAmount",
+"preferredLanguage","lastEmiDate","charges","lastPaymentAmount","lastPaymentDate")
+VALUES
+('LN001','Rajesh Kumar',500000,12400,'hi','2025-02-01',500,5000,'2025-01-15'),
+('LN002','Priya Sharma',250000,8750,'en','2025-02-05',250,0,NULL),
+('LN003','Anand Rajan',750000,31200,'ta','2025-01-28',1500,10000,'2025-01-10');
+
+## ARCHITECTURE — 4 LAYERS
+Layer 1 — PostgreSQL: stores all data
+Layer 2 — Spring Boot API: exposes 4 REST endpoints to the bot
+Layer 3 — Python/Rasa/FastAPI: bot brain and orchestration
+Layer 4 — Whisper STT + Piper TTS: voice input/output
+
+CRITICAL RULE: The bot NEVER reads from the database directly.
+It always calls the Spring Boot API. This means company integration
+later is just changing one URL.
+
+## SPRING BOOT PROJECT STRUCTURE
+Package: com.collections
+Subpackages:
+
+- com.collections.api (controllers, repositories, DTOs, request objects)
+- com.collections.entity (JPA entity classes)
+- com.collections.voice_bot_api (main application class)
+
+## SPRING BOOT — 4 REST ENDPOINTS
+
+### Endpoint 1: GET /api/v1/accounts/{accountNumber}
+Returns full account details as AccountDTO.
+AccountDTO fields: accountId, accountNumber, customerName, loanAmount,
+overdueAmount, preferredLanguage, lastEmiDate, charges,
+lastPaymentAmount, lastPaymentDate
+
+### Endpoint 2: GET /api/v1/promise-policy
+Returns the first row of promise_policy table.
+Use: policyRepo.findTopBy().orElseThrow()
+(NOT findFirst() — Spring Data does not support that method name)
+
+### Endpoint 3: POST /api/v1/followup
+Request body: { accountId, remarks }
+Saves a new followup record and returns it with generated followupId.
+
+### Endpoint 4: POST /api/v1/promise
+Request body: { accountId, followupId, promiseAmount, promiseDate }
+MUST validate before saving:
+
+1. promiseDate must not exceed LocalDate.now().plusDays(maxPromiseDays)
+2. promiseAmount must be >= overdueAmount * (minPromisePercent / 100)
+Return 400 with message if validation fails.
+Return 200 with saved promise if valid.
+
+## CRITICAL SPRING BOOT CONFIGURATIONS
+
+### application.properties:
+spring.application.name=voice-bot-api
+spring.datasource.url=jdbc:postgresql://localhost:5432/collections_dev
+spring.datasource.username=postgres
+spring.datasource.password=YOUR_PASSWORD
+spring.jpa.hibernate.ddl-auto=none
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.show-sql=true
+spring.jpa.hibernate.naming.physical-strategy=org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+server.port=8080
+logging.level.com.collections=DEBUG
+
+### Main application class MUST have:
+@SpringBootApplication(scanBasePackages = "com.collections")
+@EntityScan(basePackages = "com.collections.entity")
+@EnableJpaRepositories(basePackages = "com.collections.api")
+
+### Entity column mapping — use quoted camelCase:
+@Column(name = ""accountId"")
+private Long accountId;
+(The escaped quotes preserve camelCase in PostgreSQL)
+
+### Use BigDecimal for all money fields — never Double or Float
+
+### Use LocalDate for date fields — never String or Date
+
+## RASA PROJECT STRUCTURE (inside rasa/ folder)
+Files needed:
+
+- domain.yml (intents, slots, responses, actions)
+- data/nlu.yml (training examples in English + Hindi)
+- data/stories.yml (conversation flows)
+- data/rules.yml (always-apply rules)
+- actions/actions.py (custom Python actions)
+- endpoints.yml (action server URL)
+- config.yml (NLU pipeline)
+
+## RASA INTENTS NEEDED
+greet, confirm_ptp, deny_ptp, provide_ptp_date, provide_ptp_amount,
+ask_balance, ask_due_date, ask_penalty, ask_last_payment,
+dispute, request_callback
+
+## RASA SLOTS NEEDED
+account_number (text), account_id (float), customer_name (text),
+overdue_amount (float), charges (float), last_emi_date (text),
+ptp_date (text), ptp_amount (float), ptp_saved (bool),
+followup_id (float)
+All custom slots use mappings: [{type: custom}]
+
+## RASA RESPONSES NEEDED
+utter_greet, utter_state_overdue, utter_ask_ptp_date,
+utter_ask_ptp_amount, utter_confirm_ptp, utter_ptp_saved,
+utter_escalate, utter_date_invalid, utter_amount_low,
+utter_ask_account, utter_account_not_found, utter_deny_acknowledged,
+utter_ask_balance
+
+## RASA CUSTOM ACTIONS (actions/actions.py)
+Three action classes — all call Spring Boot API at [http://localhost:8080/api/v1](vscode-file://vscode-app/c:/Users/mail2/AppData/Local/Programs/Microsoft%20VS%20Code/fcf604774b/resources/app/out/vs/code/electron-browser/workbench/workbench.html)
+
+### ActionFetchAccount (action_fetch_account):
+
+- Reads account_number slot
+- Calls GET /api/v1/accounts/{accountNumber}
+- Sets slots: account_id, customer_name, overdue_amount, charges, last_emi_date
+- Uses timeout=5 on all requests
+- Handles ConnectionError gracefully
+
+### ActionValidateAndSavePTP (action_validate_and_save_ptp):
+
+- Reads slots: ptp_date, ptp_amount, overdue_amount, account_id
+- Calls GET /api/v1/promise-policy to get validation rules
+- Validates date against maxPromiseDays (try multiple date formats)
+- Validates amount against minPromisePercent
+- If invalid: dispatcher.utter_message with explanation, return SlotSet(field, None)
+- If valid: calls POST /api/v1/promise, sets ptp_saved=True
+
+### ActionSaveFollowup (action_save_followup):
+
+- Auto-generates remarks based on last_intent and ptp_saved slot
+- Calls POST /api/v1/followup
+- Sets followup_id slot from response
+
+## RASA RULES (data/rules.yml)
+ONLY these 3 rules — no more (adding more causes contradictions with stories):
+
+1. dispute intent → utter_escalate + action_save_followup
+2. request_callback intent → utter_deny_acknowledged + action_save_followup
+3. deny_ptp intent → utter_deny_acknowledged + action_save_followup
+DO NOT add rules for greet, ask_balance, ask_due_date, ask_penalty.
+These are handled in stories.yml.
+
+## FASTAPI BOT SERVER (bot/main.py)
+
+### Key design decisions:
+
+1. FastAPI fetches account data from Spring Boot DIRECTLY — does not rely on Rasa to fetch it
+2. All slots are set via Rasa tracker events API before the conversation starts:
+POST /conversations/{sender_id}/tracker/events
+with list of slot events
+3. The opening greeting is built directly in FastAPI from account data — Rasa is NOT called for the greeting message
+4. Rasa tracker events are used to record the greeting happened so dialogue state is correct
+5. For handle_message: send transcript to Rasa, get response, synthesise to audio
+
+### Endpoints:
+GET /health — returns status of all loaded models
+POST /call/start?account_number=X — starts a call, returns WAV audio greeting
+POST /call/message?account_number=X — receives WAV audio, returns WAV audio response
+
+### Greeting logic in call/start:
+
+- Fetch account from Spring Boot
+- Set all slots via tracker events API
+- Build greeting text directly:
+Hindi (lang=hi): "Namaste, kya main {name} ji se baat kar sakta hoon?
+Aapke loan account par {overdue} rupaye baaki hain
+aur {charges} rupaye ke charges hain.
+Aap kab tak payment kar sakte hain?"
+English: "Hello, am I speaking with {name}?
+Your loan account has an overdue amount of {overdue} rupees
+with additional charges of {charges} rupees.
+When would you be able to make this payment?"
+- Record greeting in Rasa tracker as events (user greet + action events)
+- Synthesise greeting text to WAV and return
+
+### TTS synthesis — use synthesize_wav method:
+voice.synthesize_wav(text, wav_file_object, set_wav_format=True)
+where wav_file_object is opened with wave.open(path, "wb")
+
+### Piper voice models:
+Hindi: hi_IN-rohan-medium.onnx
+English: en_US-amy-low.onnx
+(downloaded from huggingface rhasspy/piper-voices)
+
+### Whisper model: use "medium" size, device="cpu"
+
+## TEST SCRIPT (bot/test_voice.py)
+Records from microphone, sends to /call/message, plays back response.
+MUST specify device indices explicitly:
+
+- HEADPHONE_DEVICE = 3 (or whatever sounddevice reports for output)
+- MIC_DEVICE = 1 (or whatever sounddevice reports for input)
+Use sd.play(data, samplerate, device=HEADPHONE_DEVICE)
+Use sd.rec(..., device=MIC_DEVICE)
+
+## FOLDER STRUCTURE
+collections-voice-bot/
+├── api/voice-bot-api/ (Spring Boot — Maven project)
+├── bot/
+│ ├── main.py (FastAPI server)
+│ ├── test_voice.py (voice test script)
+│ ├── test_audio.py (audio device test)
+│ └── models/ (Piper .onnx files)
+├── rasa/ (Rasa project)
+├── scripts/schema.sql (database schema)
+└── venv/ (Python 3.10 virtual environment)
+
+## HOW TO RUN (5 terminals, start in order)
+Terminal 1: cd api/voice-bot-api && mvnw spring-boot:run
+Terminal 2: venv activate && cd rasa && rasa run actions
+Terminal 3: venv activate && cd rasa && rasa run --enable-api --cors "*"
+Terminal 4: venv activate && cd bot && uvicorn main:app --port 8000 --reload
+Terminal 5: venv activate && cd bot && python test_voice.py
+
+## KNOWN ISSUES AND FIXES
+
+1. Rasa findFirst() — use findTopBy() instead in repositories
+2. PostgreSQL column names — always quote camelCase in @Column
+3. Hibernate snake_case conversion — add PhysicalNamingStrategyStandardImpl
+4. Piper synthesize() writes empty WAV — use synthesize_wav() instead
+5. Python 3.11 incompatible with Rasa — must use Python 3.10
+6. Duplicate Maven dependencies cause warnings — each dependency once only
+7. Spring Boot package scanning — must use @SpringBootApplication(scanBasePackages)
+Now build this complete project. Start with:
+
+1. The PostgreSQL schema SQL script
+2. The Spring Boot pom.xml
+3. All entity classes
+4. All repository interfaces
+5. All controllers
+6. application.properties and main application class
+7. Rasa domain.yml
+8. Rasa nlu.yml with Hindi and English examples
+9. Rasa stories.yml
+10. Rasa rules.yml
+11. Rasa actions/actions.py
+12. FastAPI bot/main.py
+13. bot/test_voice.py
+For each file explain what every line does and why.
+
+Project is located in E:\claude_test\collections-voice-bot

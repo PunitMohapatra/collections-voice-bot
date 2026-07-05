@@ -1,0 +1,58 @@
+version: "3.6"
+
+# =============================================================================
+# NLU Pipeline Configuration
+# =============================================================================
+# WhitespaceTokenizer: splits on whitespace (good for Hindi/English mixed)
+# RegexFeaturizer: uses regex patterns for entity extraction
+# LexicalSyntacticFeaturizer: word-level features (POS, case, etc.)
+# CountVectorsFeaturizer: bag-of-words features for intent classification
+# DIETClassifier: dual intent and entity transformer (main classifier)
+# FallbackClassifier: triggers nlu_fallback when confidence is too low
+# EntitySynonymMapper: maps entity synonyms to canonical values
+# ResponseSelector: selects appropriate response templates
+# =============================================================================
+
+pipeline:
+- name: "WhitespaceTokenizer"
+- name: "RegexFeaturizer"
+- name: "LexicalSyntacticFeaturizer"
+- name: "CountVectorsFeaturizer"
+- name: "CountVectorsFeaturizer"
+  analyzer: "char_wb"
+  min_ngram: 1
+  max_ngram: 4
+- name: "RegexEntityExtractor"
+- name: "DIETClassifier"
+  epochs: 50
+  constrain_similarities: true
+  model_confidence: "softmax"
+- name: "FallbackClassifier"
+  threshold: 0.5
+  ambiguity_threshold: 0.1
+- name: "EntitySynonymMapper"
+- name: "ResponseSelector"
+  epochs: 50
+
+# =============================================================================
+# Dialogue Policies Configuration
+# =============================================================================
+# MemoizationPolicy: remembers exact story paths from training data
+# TEDPolicy: generalizes to unseen conversation paths using transformer
+# RulePolicy: enforces hard rules that always apply (dispute, callback, deny)
+# =============================================================================
+
+policies:
+- name: "MemoizationPolicy"
+  max_history: 5
+- name: "TEDPolicy"
+  max_history: 5
+  epochs: 50
+  constrain_similarities: true
+- name: "RulePolicy"
+  core_fallback_threshold: 0.3
+  core_fallback_action_name: "action_default_fallback"
+  enable_fallback_prediction: true
+
+language: "en"
+assistant_id: 20260625-215146-cyclic-pinot

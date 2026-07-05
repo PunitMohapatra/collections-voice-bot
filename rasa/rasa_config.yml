@@ -1,0 +1,57 @@
+﻿# ============================================================================
+# Rasa Configuration - Debt Collections Voice Bot
+# ============================================================================
+# This configuration file defines Rasa's behavior including:
+# - NLU pipeline (WhitespaceTokenizer + RegexFeaturizer)
+# - Story and rule priority
+# - Action execution timeout
+# - API endpoint for custom actions
+# ============================================================================
+
+version: "3.6"
+
+# Rasa server configuration
+server:
+  # Enable CORS for browser testing
+  cors:
+    allow_origin_regex: ".*"
+  
+  # Enable metrics endpoint for monitoring
+  enable_cors: true
+
+# NLU pipeline configuration
+pipeline:
+  - name: "WhitespaceTokenizer"
+  - name: "RegexFeaturizer"
+  - name: "LexicalSyntacticFeaturizer"
+  - name: "CountVectorsFeaturizer"
+  - name: "DIETClassifier"
+    epochs: 10
+    constrain_similarities: true
+  - name: "FallbackClassifier"
+    threshold: 0.5
+    ambiguity_threshold: 0.1
+  - name: "EntitySynonymMapper"
+  - name: "ResponseSelector"
+    epochs: 10
+
+# Dialogue policies configuration
+policies:
+  - name: "MemoizationPolicy"
+    max_history: 5
+  - name: "TEDPolicy"
+    max_history: 5
+    epochs: 10
+    constrain_similarities: true
+  - name: "RulePolicy"
+    core_fallback_threshold: 0.3
+    core_fallback_action_name: "action_default_fallback"
+    enable_fallback_prediction: true
+
+# Story and rule configuration
+story_confidence_threshold: 0.75
+rule_confidence_threshold: 0.75
+
+# Action execution timeout (in seconds)
+action_execution_timeout: 60
+

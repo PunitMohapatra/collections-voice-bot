@@ -1,0 +1,309 @@
+version: "3.1"
+
+session_config:
+  session_expiration_time: 3600
+  carry_over_slots_to_new_session: true
+
+# =============================================================================
+# Intents — all customer intents the bot recognizes
+# =============================================================================
+intents:
+  - greet
+  - goodbye
+  - confirm_ptp
+  - deny_ptp
+  - provide_ptp_date
+  - provide_ptp_amount
+  - ask_balance
+  - ask_due_date
+  - ask_penalty
+  - ask_last_payment
+  - ask_total_due
+  - agree_partial_payment
+  - request_extension
+  - dispute
+  - request_callback
+  - nlu_fallback
+
+# =============================================================================
+# Entities — extracted from user messages
+# =============================================================================
+entities:
+  - date
+  - amount
+  - account_number
+
+# =============================================================================
+# Slots — conversation state stored across turns
+# All use custom mappings because they are set programmatically
+# =============================================================================
+slots:
+  account_number:
+    type: text
+    mappings:
+      - type: custom
+
+  account_id:
+    type: float
+    mappings:
+      - type: custom
+
+  customer_name:
+    type: text
+    mappings:
+      - type: custom
+
+  overdue_amount:
+    type: float
+    mappings:
+      - type: custom
+
+  charges:
+    type: float
+    mappings:
+      - type: custom
+
+  last_emi_date:
+    type: text
+    mappings:
+      - type: custom
+
+  last_payment_amount:
+    type: float
+    mappings:
+      - type: custom
+
+  last_payment_date:
+    type: text
+    mappings:
+      - type: custom
+
+  ptp_date:
+    type: text
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: date
+
+  ptp_amount:
+    type: float
+    influence_conversation: true
+    mappings:
+      - type: from_entity
+        entity: amount
+
+  ptp_saved:
+    type: bool
+    mappings:
+      - type: custom
+
+  followup_id:
+    type: float
+    mappings:
+      - type: custom
+
+  preferred_language:
+    type: text
+    mappings:
+      - type: custom
+
+# =============================================================================
+# Custom Actions — Python action classes called via action server
+# =============================================================================
+actions:
+  - action_fetch_account
+  - action_validate_and_save_ptp
+  - action_save_followup
+
+# =============================================================================
+# Responses — bot reply templates (Hindi + English variants)
+# =============================================================================
+responses:
+  # --- Greeting ---
+  utter_greet:
+    - text: "Namaste {customer_name} ji! Aapke loan account par {overdue_amount} rupaye baaki hain aur {charges} rupaye ke charges hain. Aap kab tak payment kar sakte hain?"
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Hello {customer_name}! Your loan account has an overdue amount of {overdue_amount} rupees with additional charges of {charges} rupees. When would you be able to make this payment?"
+
+  # --- Overdue statement ---
+  utter_state_overdue:
+    - text: "Aapka loan account number {account_number} hai. Aapke paas {overdue_amount} rupaye overdue hain aur {charges} rupaye charges lagaye gaye hain."
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Your loan account {account_number} has {overdue_amount} rupees overdue with {charges} rupees in charges."
+
+  # --- PTP date request ---
+  utter_ask_ptp_date:
+    - text: "Kya aap bata sakte hain ki aap kab tak payment kar sakte hain? Kripya ek date batayein."
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Can you tell me when you would be able to make the payment? Please provide a date."
+
+  # --- PTP amount request ---
+  utter_ask_ptp_amount:
+    - text: "Dhanyavaad. Ab kripya batayein ki aap kitna amount payment kar sakte hain?"
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Thank you. Now please tell me how much amount you can pay?"
+
+  # --- PTP confirmation ---
+  utter_confirm_ptp:
+    - text: "Toh aap {ptp_amount} rupaye {ptp_date} tak payment karenge, kya yeh sahi hai?"
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "So you will pay {ptp_amount} rupees by {ptp_date}, is that correct?"
+
+  # --- PTP saved successfully ---
+  utter_ptp_saved:
+    - text: "Badhiya! Aapka Promise to Pay save ho gaya hai. Hum {ptp_amount} rupaye {ptp_date} tak expect karenge. Dhanyavaad!"
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Great! Your Promise to Pay has been saved. We expect {ptp_amount} rupees by {ptp_date}. Thank you!"
+
+  # --- Escalation to human agent ---
+  utter_escalate:
+    - text: "Main samajh raha hoon. Main aapki complaint ek human agent ko forward kar raha hoon. Kripya line par rahein."
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "I understand. I am forwarding your complaint to a human agent. Please stay on the line."
+
+  # --- Invalid date ---
+  utter_date_invalid:
+    - text: "Maaf kijiye, yeh ek valid date nahi hai. Kripya aaj se 30 din ke andar ek payment date batayein."
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Sorry, that is not a valid date. Please provide a payment date within 30 days from today."
+
+  # --- Amount too low ---
+  utter_amount_low:
+    - text: "Maaf kijiye, yeh amount bahut kam hai. Kripya kam se kam minimum required amount batayein."
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Sorry, that amount is too low. Please offer at least the minimum required amount."
+
+  # --- Ask for account number ---
+  utter_ask_account:
+    - text: "Kripya apna loan account number batayein (jaise LN001)."
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Please provide your loan account number (e.g., LN001)."
+
+  # --- Account not found ---
+  utter_account_not_found:
+    - text: "Maaf kijiye, account number {account_number} nahi mila. Kripya sahi account number check karein."
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Sorry, account number {account_number} was not found. Please check your account number."
+
+  # --- Deny PTP acknowledged ---
+  utter_deny_acknowledged:
+    - text: "Samajh gaya. Agar aap abhi payment nahi kar sakte, toh kripya jaldi se jaldi ek date batayein jab aap payment karenge."
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "I understand. If you cannot pay now, please let us know a date when you can make the payment as soon as possible."
+
+  # --- Balance inquiry ---
+  utter_ask_balance:
+    - text: "Aapka loan account {account_number} par {overdue_amount} rupaye overdue hain aur {charges} rupaye charges lagaye gaye hain. Kya aap abhi payment ka plan bana sakte hain?"
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Your loan account {account_number} has {overdue_amount} rupees overdue and {charges} rupees in charges. Can you plan a payment now?"
+
+  # --- Due date inquiry ---
+  utter_due_date:
+    - text: "Aapki last EMI date {last_emi_date} thi. Kripya overdue amount jaldi se jaldi clear karein."
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Your last EMI date was {last_emi_date}. Please clear the overdue amount as soon as possible."
+
+  # --- Penalty/charges inquiry ---
+  utter_penalty_info:
+    - text: "Aapke account par {charges} rupaye ke charges lagaye gaye hain. Yeh late payment ki wajah se hain. Jaldi payment karke aur charges se bach sakte hain."
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Your account has {charges} rupees in charges. These are due to late payment. You can avoid further charges by making payment soon."
+
+  # --- Last payment inquiry ---
+  utter_last_payment:
+    - text: "Aapki last payment {last_payment_amount} rupaye thi jo {last_payment_date} ko ki gayi thi."
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Your last payment was {last_payment_amount} rupees made on {last_payment_date}."
+
+  # --- Total due (overdue + charges) ---
+  utter_total_due:
+    - text: "Aapki total baaki rashi {overdue_amount} rupaye overdue aur {charges} rupaye charges milakar hai. Kripya jaldi se jaldi payment karein."
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Your total due is {overdue_amount} rupees overdue plus {charges} rupees in charges. Please make payment as soon as possible."
+
+  # --- Partial payment acknowledgment ---
+  utter_partial_payment:
+    - text: "Aap partial payment kar sakte hain, lekin kam se kam minimum required amount dena hoga. Kitna amount aap de sakte hain?"
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "You can make a partial payment, but it must be at least the minimum required amount. How much can you pay?"
+
+  # --- Extension denied ---
+  utter_extension_denied:
+    - text: "Maaf kijiye, hum payment date ko aur aage nahi badha sakte. Kripya 30 din ke andar ek payment date batayein."
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Sorry, we cannot extend the payment date further. Please provide a payment date within 30 days."
+
+  # --- Goodbye ---
+  utter_goodbye:
+    - text: "Dhanyavaad {customer_name} ji. Kripya samay par payment karein. Namaste!"
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Thank you {customer_name}. Please make your payment on time. Goodbye!"
+
+  # --- Fallback / didn't understand ---
+  utter_default:
+    - text: "Maaf kijiye, main samajh nahi paaya. Kya aap phir se bata sakte hain? Aap payment date, amount, ya apne account ke baare mein pooch sakte hain."
+      condition:
+        - type: slot
+          name: preferred_language
+          value: "hi"
+    - text: "Sorry, I didn't understand that. Could you please repeat? You can tell me your payment date, amount, or ask about your account."

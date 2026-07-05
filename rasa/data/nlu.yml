@@ -1,0 +1,403 @@
+# =============================================================================
+# Rasa NLU Training Data - Debt Collections Voice Bot
+# =============================================================================
+# Training examples for intent classification and entity extraction.
+# Supports English, Hindi, and Hinglish (code-switched) speech.
+# Each intent has 15-25 examples for robust classification.
+# =============================================================================
+
+version: "3.1"
+
+nlu:
+
+# =============================================================================
+# Greeting Intent
+# =============================================================================
+  - intent: greet
+    examples: |
+      - hello
+      - hi
+      - hey
+      - hii
+      - namaste
+      - namaskar
+      - namasté
+      - good morning
+      - good afternoon
+      - good evening
+      - hi there
+      - hello ji
+      - haan ji
+      - haan bolo
+      - kya haal chaal hai
+      - kaise ho
+      - haan main bol raha hoon
+      - haan main sun raha hoon
+      - yes speaking
+      - yes I am listening
+      - haan boliye
+      - ji haan
+      - haan ji boliye
+
+# =============================================================================
+# Goodbye Intent
+# =============================================================================
+  - intent: goodbye
+    examples: |
+      - bye
+      - goodbye
+      - bye bye
+      - see you
+      - alvida
+      - namaste phir milenge
+      - theek hai bye
+      - okay bye
+      - thanks bye
+      - dhanyavaad bye
+      - good bye
+      - talk to you later
+      - accha bye
+      - ok done bye
+      - thank you goodbye
+      - theek hai phir baat karte hain
+      - chaliye phir
+
+# =============================================================================
+# Confirm PTP (Promise to Pay) Intent
+# =============================================================================
+  - intent: confirm_ptp
+    examples: |
+      - haan main kar sakta hoon
+      - haan payment karunga
+      - yes I can pay
+      - sure I will pay
+      - yes I'll make the payment
+      - okay I can do it
+      - bilkul main kar sakta hoon
+      - haan zaroor karunga
+      - theek hai main pay kar dunga
+      - main payment kar deta hoon
+      - okay I'll pay
+      - fine I will pay
+      - yes I agree to pay
+      - haan main ready hoon payment ke liye
+      - main kar lunga payment
+      - I will make the payment
+      - I promise to pay
+      - haan main promise karta hoon
+      - okay done main pay karunga
+      - sure no problem I will pay
+
+# =============================================================================
+# Deny PTP Intent
+# =============================================================================
+  - intent: deny_ptp
+    examples: |
+      - nahi abhi nahi kar paunga
+      - no I cannot pay now
+      - sorry I can't pay
+      - nahi mujhe abhi payment nahi karni
+      - no I'm not able to pay
+      - sorry I can't make this payment
+      - abhi mere paas paise nahi hain
+      - I don't have money right now
+      - main abhi payment nahi kar sakta
+      - nahi hoga abhi
+      - it's not possible right now
+      - abhi nahi ho payega
+      - I cannot afford it
+      - paise nahi hain mere paas
+      - no way I can pay now
+      - sorry but I cannot pay
+      - meri financial condition theek nahi hai
+      - I am facing financial difficulties
+      - main jobless hoon abhi
+      - nahi kar paunga payment abhi
+
+# =============================================================================
+# Provide PTP Date Intent
+# =============================================================================
+  - intent: provide_ptp_date
+    examples: |
+      - [15 march](date) ko karunga
+      - [20 april](date) tak pay kar dunga
+      - main [5 din baad](date) karunga
+      - [next week](date) payment kar dunga
+      - [next month](date) karunga
+      - [10 tarikh](date) ko
+      - [aaj](date) hi kar deta hoon
+      - [kal](date) kar dunga
+      - [parson](date) tak
+      - [15th](date) of this month
+      - by [30th may](date)
+      - I will pay on [march 15](date)
+      - [in 5 days](date) I will pay
+      - [10th of next month](date)
+      - [next friday](date)
+      - [this weekend](date) main pay karunga
+      - [25 june](date) tak definitely
+      - I can pay by [july 10](date)
+      - [2 hafte baad](date)
+      - [month end](date) tak karunga
+
+# =============================================================================
+# Provide PTP Amount Intent
+# =============================================================================
+  - intent: provide_ptp_amount
+    examples: |
+      - main [5000](amount) rupaye karunga
+      - I can pay [5000](amount) rupees
+      - [10000](amount) rupaye de dunga
+      - [8000](amount) rupees
+      - [15000](amount) rupees
+      - [6000](amount) rupaye
+      - [20000](amount) rupees
+      - [3000](amount) de sakta hoon
+      - [7500](amount) karunga
+      - [12000](amount) tak de sakta hoon
+      - I'll pay [25000](amount)
+      - [2000](amount) hi de sakta hoon abhi
+      - around [10000](amount) main de sakta hoon
+      - maximum [5000](amount) de paunga
+      - [4000](amount) rupaye abhi de sakta hoon
+      - I can manage [8000](amount) rupees
+      - [50000](amount) poora pay kar dunga
+      - [1000](amount) abhi ke liye
+      - I can give [3500](amount)
+      - bas [2500](amount) hi dena hoga
+
+# =============================================================================
+# Ask Balance Intent
+# =============================================================================
+  - intent: ask_balance
+    examples: |
+      - kya mera loan balance bata sakte hain
+      - what is my loan balance
+      - how much do I owe
+      - mere paas kitna baaki hai
+      - tell me my outstanding amount
+      - what is my current balance
+      - mera balance kya hai
+      - kitna amount due hai mera
+      - mujhe apna balance jaanna hai
+      - how much is outstanding
+      - remaining amount kya hai
+      - what is the total I owe
+      - mere kitne paise baaki hain
+      - mujhe apna overdue amount batao
+      - can you tell me my balance
+      - what do I need to pay
+      - total kitna dena hai mujhe
+
+# =============================================================================
+# Ask Due Date Intent
+# =============================================================================
+  - intent: ask_due_date
+    examples: |
+      - mera EMI kab tha
+      - when was my last EMI due
+      - what is my due date
+      - meri payment ka date kya hai
+      - when is my payment due
+      - last emi date kya hai
+      - meri emi kab aati hai
+      - due date batao
+      - when should I have paid
+      - payment date kya thi
+      - what was the due date
+      - meri last due date kya thi
+      - kab tak payment karni chahiye thi
+      - emi ka date bataiye
+      - when was the emi supposed to be paid
+
+# =============================================================================
+# Ask Penalty / Charges Intent
+# =============================================================================
+  - intent: ask_penalty
+    examples: |
+      - charges kitne hain
+      - how much are the charges
+      - what are the penalties
+      - mere par charges kitne lagaye gaye hain
+      - what is the penalty amount
+      - charges bataiye
+      - penalty kitni hai
+      - late fee kitni hai
+      - how much late fee
+      - kya koi extra charges hain
+      - are there any penalties
+      - fine kitna hai
+      - additional charges kya hain
+      - overdue charges kitne hain
+      - what is the late payment fee
+      - mujhe charges ke baare mein batao
+      - penalty amount kya hai
+
+# =============================================================================
+# Ask Last Payment Intent
+# =============================================================================
+  - intent: ask_last_payment
+    examples: |
+      - maine kab payment ki thi
+      - when did I last make a payment
+      - what was my last payment date
+      - meri last payment kab thi
+      - when was my last payment
+      - last payment ka date kya hai
+      - meri pichli payment kab hui thi
+      - how much was my last payment
+      - kitna diya tha maine last time
+      - last payment amount kya tha
+      - meri last payment kitni thi
+      - when did I pay last
+      - what was my previous payment
+      - kab aur kitna diya tha maine
+      - tell me about my last payment
+
+# =============================================================================
+# Ask Total Due Intent (overdue + charges combined)
+# =============================================================================
+  - intent: ask_total_due
+    examples: |
+      - total kitna dena hai
+      - what is the total amount due
+      - sab milakar kitna hai
+      - how much in total do I owe
+      - charges ke saath total kitna hai
+      - what is the total including penalties
+      - poora amount kya hai
+      - total outstanding amount batao
+      - overdue aur charges milakar kitna hai
+      - give me the complete total
+      - total due amount kya hai
+      - sab milakar kitne paise dene hain
+      - what is the grand total
+      - net payable amount kya hai
+      - everything together kitna hai
+
+# =============================================================================
+# Agree Partial Payment Intent
+# =============================================================================
+  - intent: agree_partial_payment
+    examples: |
+      - main thoda thoda karke pay karunga
+      - I can only pay part of it
+      - kya main partial payment kar sakta hoon
+      - can I pay in installments
+      - poora ek saath nahi de sakta
+      - I can pay some now and rest later
+      - half amount abhi de deta hoon
+      - can I split the payment
+      - thoda abhi thoda baad mein
+      - I want to make a partial payment
+      - ek baar mein itna nahi de sakta
+      - can I pay half now
+      - aadha abhi de deta hoon
+      - let me pay in parts
+      - main kuch amount abhi de sakta hoon
+
+# =============================================================================
+# Request Extension Intent
+# =============================================================================
+  - intent: request_extension
+    examples: |
+      - mujhe aur time chahiye
+      - I need more time to pay
+      - can I get an extension
+      - thoda aur time de dijiye
+      - please give me more days
+      - kya deadline extend ho sakti hai
+      - I need extra time
+      - 30 din se zyada chahiye mujhe
+      - extend the due date please
+      - mujhe aur samay chahiye
+      - can you give me more time
+      - please extend my payment deadline
+      - I can't pay within 30 days
+      - mujhe do mahine chahiye
+      - please allow me more time
+
+# =============================================================================
+# Dispute Intent
+# =============================================================================
+  - intent: dispute
+    examples: |
+      - main isse disagree karta hoon
+      - I dispute this
+      - I don't agree with this amount
+      - yeh galat hai mujhe disagree hai
+      - I disagree with this claim
+      - this is incorrect
+      - yeh amount galat hai
+      - this is wrong
+      - I have already paid this
+      - maine yeh payment pehle hi kar di hai
+      - there is an error in my account
+      - meri account mein galti hai
+      - I want to speak to a manager
+      - yeh mera loan nahi hai
+      - this is not my loan
+      - I never took this loan
+      - maine yeh loan nahi liya
+      - amount galat calculate hua hai
+      - the calculation is wrong
+
+# =============================================================================
+# Request Callback Intent
+# =============================================================================
+  - intent: request_callback
+    examples: |
+      - main baad mein call karunga
+      - I'll call back later
+      - please call me tomorrow
+      - mujhe kal call karo
+      - callback request
+      - please reach out to me later
+      - abhi busy hoon baad mein baat karte hain
+      - I'm busy right now call later
+      - can you call me in the evening
+      - shaam ko call karna
+      - not a good time please call back
+      - mujhe baad mein call karein
+      - I'll get back to you
+      - abhi baat nahi kar sakta
+      - please call after 2 hours
+      - kal subah call karo
+
+# =============================================================================
+# Regex Features for Entity Extraction
+# =============================================================================
+  - regex: amount
+    examples: |
+      - \d+
+      - \d+\.\d+
+
+  - regex: date
+    examples: |
+      - \d{1,2}/\d{1,2}/\d{2,4}
+      - \d{1,2}-\d{1,2}-\d{2,4}
+      - \d{4}-\d{2}-\d{2}
+
+  - regex: account_number
+    examples: |
+      - LN\d{3,}
+      - ln\d{3,}
+
+# =============================================================================
+# Lookup Tables for better entity recognition
+# =============================================================================
+  - lookup: date
+    examples: |
+      - today
+      - tomorrow
+      - day after tomorrow
+      - next week
+      - next month
+      - this weekend
+      - month end
+      - aaj
+      - kal
+      - parson
+      - agle hafte
+      - agle mahine
+      - is weekend

@@ -1,0 +1,244 @@
+# =============================================================================
+# Rasa Stories - Debt Collections Voice Bot
+# =============================================================================
+# Conversation flows for the dialogue manager. These define multi-turn
+# paths the bot follows. MemoizationPolicy memorizes exact paths,
+# TEDPolicy generalizes to unseen variations.
+#
+# NOTE: dispute, request_callback, deny_ptp are handled by rules.yml
+# DO NOT duplicate them here to avoid contradictions with rules.
+# =============================================================================
+
+version: "3.1"
+
+stories:
+
+  # ---------------------------------------------------------------------------
+  # Basic single-turn interactions
+  # ---------------------------------------------------------------------------
+
+  - story: greet user
+    steps:
+      - intent: greet
+      - action: utter_greet
+
+  - story: ask balance
+    steps:
+      - intent: ask_balance
+      - action: utter_ask_balance
+
+  - story: ask due date
+    steps:
+      - intent: ask_due_date
+      - action: utter_due_date
+
+  - story: ask penalty charges
+    steps:
+      - intent: ask_penalty
+      - action: utter_penalty_info
+
+  - story: ask last payment
+    steps:
+      - intent: ask_last_payment
+      - action: utter_last_payment
+
+  - story: ask total due
+    steps:
+      - intent: ask_total_due
+      - action: utter_total_due
+
+  # ---------------------------------------------------------------------------
+  # PTP (Promise to Pay) capture flows
+  # ---------------------------------------------------------------------------
+  # NOTE: When the customer says both amount and date in one sentence
+  # ("I will pay 5000 by Friday"), NLU often classifies it as
+  # provide_ptp_amount or provide_ptp_date. Entities fill BOTH slots.
+  # The stories below handle both slots being set when the second intent arrives.
+
+  - story: confirm ptp then provide date and amount
+    steps:
+      - intent: confirm_ptp
+      - action: utter_ask_ptp_date
+      - intent: provide_ptp_date
+      - action: utter_ask_ptp_amount
+      - intent: provide_ptp_amount
+      - action: action_validate_and_save_ptp
+      - action: action_save_followup
+
+  - story: provide date first then amount
+    steps:
+      - intent: provide_ptp_date
+      - action: utter_ask_ptp_amount
+      - intent: provide_ptp_amount
+      - action: action_validate_and_save_ptp
+      - action: action_save_followup
+
+  - story: provide amount first then date
+    steps:
+      - intent: provide_ptp_amount
+      - action: utter_ask_ptp_date
+      - intent: provide_ptp_date
+      - action: action_validate_and_save_ptp
+      - action: action_save_followup
+
+  # Note: Single-turn PTP ("I'll pay 5000 by Friday") is handled inside
+  # ActionValidateAndSavePTP: if both ptp_date and ptp_amount slots are
+  # already filled (from entities), it validates and saves without prompting.
+  # These 1-turn stories reinforce that path in MEMOization.
+
+  - story: provide ptp amount - both slots filled save immediately
+    steps:
+      - intent: provide_ptp_amount
+      - action: action_validate_and_save_ptp
+      - action: action_save_followup
+
+  - story: provide ptp date - both slots filled save immediately
+    steps:
+      - intent: provide_ptp_date
+      - action: action_validate_and_save_ptp
+      - action: action_save_followup
+
+  - story: confirm ptp - both slots filled save immediately
+    steps:
+      - intent: confirm_ptp
+      - action: action_validate_and_save_ptp
+      - action: action_save_followup
+
+  # ---------------------------------------------------------------------------
+  # Full call flows (multi-turn conversations)
+  # ---------------------------------------------------------------------------
+
+  - story: full call - greet then confirm and pay
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: confirm_ptp
+      - action: utter_ask_ptp_date
+      - intent: provide_ptp_date
+      - action: utter_ask_ptp_amount
+      - intent: provide_ptp_amount
+      - action: action_validate_and_save_ptp
+      - action: action_save_followup
+
+  - story: full call - greet then ask balance then pay
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: ask_balance
+      - action: utter_ask_balance
+      - intent: confirm_ptp
+      - action: utter_ask_ptp_date
+      - intent: provide_ptp_date
+      - action: utter_ask_ptp_amount
+      - intent: provide_ptp_amount
+      - action: action_validate_and_save_ptp
+      - action: action_save_followup
+
+  - story: customer asks questions then agrees to pay
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: ask_penalty
+      - action: utter_penalty_info
+      - intent: ask_due_date
+      - action: utter_due_date
+      - intent: confirm_ptp
+      - action: utter_ask_ptp_date
+      - intent: provide_ptp_date
+      - action: utter_ask_ptp_amount
+      - intent: provide_ptp_amount
+      - action: action_validate_and_save_ptp
+      - action: action_save_followup
+
+  - story: greet then ask total due then pay
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: ask_total_due
+      - action: utter_total_due
+      - intent: confirm_ptp
+      - action: utter_ask_ptp_date
+      - intent: provide_ptp_date
+      - action: utter_ask_ptp_amount
+      - intent: provide_ptp_amount
+      - action: action_validate_and_save_ptp
+      - action: action_save_followup
+
+  # ---------------------------------------------------------------------------
+  # Partial payment negotiation flow
+  # ---------------------------------------------------------------------------
+
+  - story: customer wants partial payment
+    steps:
+      - intent: agree_partial_payment
+      - action: utter_partial_payment
+      - intent: provide_ptp_amount
+      - action: utter_ask_ptp_date
+      - intent: provide_ptp_date
+      - action: action_validate_and_save_ptp
+      - action: action_save_followup
+
+  - story: greet then partial payment
+    steps:
+      - intent: greet
+      - action: utter_greet
+      - intent: agree_partial_payment
+      - action: utter_partial_payment
+      - intent: provide_ptp_amount
+      - action: utter_ask_ptp_date
+      - intent: provide_ptp_date
+      - action: action_validate_and_save_ptp
+      - action: action_save_followup
+
+  # ---------------------------------------------------------------------------
+  # Extension request flow
+  # ---------------------------------------------------------------------------
+
+  - story: request extension then provide date
+    steps:
+      - intent: request_extension
+      - action: utter_extension_denied
+      - intent: provide_ptp_date
+      - action: utter_ask_ptp_amount
+      - intent: provide_ptp_amount
+      - action: action_validate_and_save_ptp
+      - action: action_save_followup
+
+  - story: request extension then deny
+    steps:
+      - intent: request_extension
+      - action: utter_extension_denied
+
+  # ---------------------------------------------------------------------------
+  # Call ending flows
+  # ---------------------------------------------------------------------------
+
+  - story: ptp saved then goodbye
+    steps:
+      - intent: provide_ptp_amount
+      - action: action_validate_and_save_ptp
+      - action: action_save_followup
+      - intent: goodbye
+      - action: utter_goodbye
+
+  - story: simple goodbye after conversation
+    steps:
+      - intent: goodbye
+      - action: utter_goodbye
+      - action: action_save_followup
+
+  # ---------------------------------------------------------------------------
+  # Last payment inquiry then follow-up
+  # ---------------------------------------------------------------------------
+
+  - story: ask last payment then confirm ptp
+    steps:
+      - intent: ask_last_payment
+      - action: utter_last_payment
+      - intent: confirm_ptp
+      - action: utter_ask_ptp_date
+      - intent: provide_ptp_date
+      - action: utter_ask_ptp_amount
+      - intent: provide_ptp_amount
+      - action: action_validate_and_save_ptp
+      - action: action_save_followup

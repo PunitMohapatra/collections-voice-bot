@@ -1,0 +1,40 @@
+# =============================================================================
+# Rasa Rules - Debt Collections Voice Bot
+# =============================================================================
+# Rules ALWAYS apply regardless of conversation context.
+# IMPORTANT: Keep rules minimal to avoid contradictions with stories.
+#
+# Original 3 rules: dispute, request_callback, deny_ptp
+# Added: nlu_fallback rule for unrecognized input
+# =============================================================================
+
+version: "3.1"
+
+rules:
+
+  # Rule 1: Dispute always escalates to human agent
+  - rule: Dispute escalates to human agent
+    steps:
+      - intent: dispute
+      - action: utter_escalate
+      - action: action_save_followup
+
+  # Rule 2: Callback request always acknowledges and saves followup
+  - rule: Request callback denies and saves followup
+    steps:
+      - intent: request_callback
+      - action: utter_deny_acknowledged
+      - action: action_save_followup
+
+  # Rule 3: Deny PTP always acknowledges and saves followup
+  - rule: Deny PTP acknowledges and saves followup
+    steps:
+      - intent: deny_ptp
+      - action: utter_deny_acknowledged
+      - action: action_save_followup
+
+  # Rule 4: Fallback for unrecognized input
+  - rule: Ask rephrase when NLU confidence is low
+    steps:
+      - intent: nlu_fallback
+      - action: utter_default
